@@ -1,0 +1,15 @@
+# Firebase App Hosting Configuration
+# https://firebase.google.com/docs/app-hosting
+
+runConfig:
+  minInstances: 0
+  maxInstances: 5
+  concurrency: 80
+  cpu: 1
+  memoryMiB: 512
+
+env:
+  - variable: NODE_ENV
+    value: production
+  - variable: ADMIN_EMAIL
+    value: admin@civicresolve.gov

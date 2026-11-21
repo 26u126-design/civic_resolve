@@ -1,0 +1,62 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() &&
+        (request.auth.token.role == 'admin' ||
+         request.auth.token.email.matches('.*@civicresolve\\.gov$'));
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // Issues collection
+    match /issues/{issueId} {
+      // Anyone can read issues (public transparency)
+      allow read: if true;
+
+      // Citizens can create issues with validation
+      allow create: if
+        request.resource.data.keys().hasAll([
+          'title', 'description', 'category', 'location', 'status',
+          'priority', 'department', 'createdAt', 'trackingId'
+        ]) &&
+        request.resource.data.title is string &&
+        request.resource.data.title.size() >= 5 &&
+        request.resource.data.title.size() <= 150 &&
+        request.resource.data.description is string &&
+        request.resource.data.description.size() >= 20 &&
+        request.resource.data.description.size() <= 2000 &&
+        request.resource.data.status == 'Reported' &&
+        request.resource.data.category in [
+          'Pothole', 'Garbage', 'Streetlight', 'Water Leakage',
+          'Road Damage', 'Sewage', 'Noise Pollution', 'Traffic',
+          'Public Safety', 'Other'
+        ];
+
+      // Only administrators can update issue status, priority, department, or add admin notes
+      allow update: if isAdmin();
+
+      // Only administrators can delete an issue
+      allow delete: if isAdmin();
+    }
+
+    // Departments collection (read-only for citizens, admin editable)
+    match /departments/{departmentId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Admin audit logs (admins only)
+    match /audit_logs/{logId} {
+      allow read, write: if isAdmin();
+    }
+  }
+}
